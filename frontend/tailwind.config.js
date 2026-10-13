@@ -5,10 +5,10 @@ export default {
     extend: {
       colors: {
         ink: '#24231f',
-        paper: '#f3f0e9',
+        paper: '#f5f2ec',
         olive: '#5f6548',
-        rust: '#a04f35',
-        fog: '#d9d4c8',
+        rust: '#98563f',
+        fog: '#ddd7cc',
       },
       fontFamily: {
         sans: ['Inter', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
