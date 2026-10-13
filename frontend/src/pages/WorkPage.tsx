@@ -44,7 +44,7 @@ export function WorkPage() {
         <img src={work.image_url} alt={`${work.title}封面`} className="max-h-screen w-full bg-fog object-contain" />
         {gallery.length > 0 ? <div className="mt-8 columns-1 gap-8 md:columns-2">
           {gallery.map((url, index) => <img key={`${url}-${index}`} src={url} alt={`${work.title}作品 ${index + 1}`} loading="lazy" className="mb-8 w-full break-inside-avoid bg-fog" />)}
-        </div> : <p className="mt-10 border-t border-ink/15 py-10 text-center text-sm text-ink/45">这个作品集目前只有封面照片，可以在管理后台继续批量添加。</p>}
+        </div> : <p className="mt-10 border-t border-ink/15 py-10 text-center text-sm text-ink/45">这个作品集目前只有封面照片。</p>}
       </div>
     </article>
   );
