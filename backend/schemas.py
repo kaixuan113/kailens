@@ -18,6 +18,7 @@ class WorkPayload(BaseModel):
     location: str = Field("", max_length=80)
     year: str = Field("", max_length=12)
     image_url: str = Field(..., min_length=1, max_length=1000)
+    gallery_urls: List[str] = Field(default_factory=list, max_items=100)
     description: str = Field("", max_length=1000)
     featured: bool = False
     sort_order: int = 0

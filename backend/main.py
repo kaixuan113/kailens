@@ -43,7 +43,15 @@ def health() -> Dict[str, str]:
 
 @app.get("/api/v1/works")
 def public_works():
-    return db.rows("SELECT * FROM works ORDER BY sort_order, id DESC")
+    return [db.normalize_work(item) for item in db.rows("SELECT * FROM works ORDER BY sort_order, id DESC")]
+
+
+@app.get("/api/v1/works/{item_id}")
+def public_work(item_id: int):
+    item = db.row("SELECT * FROM works WHERE id = ?", (item_id,))
+    if not item:
+        raise HTTPException(status_code=404, detail="作品集不存在")
+    return db.normalize_work(item)
 
 
 @app.get("/api/v1/posts")
@@ -119,7 +127,7 @@ def change_password(payload: PasswordRequest):
 
 @app.get("/api/v1/admin/works", dependencies=[Depends(require_admin)])
 def admin_works():
-    return db.rows("SELECT * FROM works ORDER BY sort_order, id DESC")
+    return [db.normalize_work(item) for item in db.rows("SELECT * FROM works ORDER BY sort_order, id DESC")]
 
 
 @app.post("/api/v1/admin/works", dependencies=[Depends(require_admin)])
@@ -129,7 +137,8 @@ def create_work(payload: WorkPayload):
         "INSERT INTO works (title, category, location, year, image_url, description, featured, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         (values["title"], values["category"], values["location"], values["year"], values["image_url"], values["description"], int(values["featured"]), values["sort_order"]),
     )
-    return db.row("SELECT * FROM works WHERE id = ?", (new_id,))
+    db.replace_work_images(new_id, values["gallery_urls"])
+    return db.normalize_work(db.row("SELECT * FROM works WHERE id = ?", (new_id,)))
 
 
 @app.put("/api/v1/admin/works/{item_id}", dependencies=[Depends(require_admin)])
@@ -139,7 +148,11 @@ def update_work(item_id: int, payload: WorkPayload):
         "UPDATE works SET title=?, category=?, location=?, year=?, image_url=?, description=?, featured=?, sort_order=? WHERE id=?",
         (values["title"], values["category"], values["location"], values["year"], values["image_url"], values["description"], int(values["featured"]), values["sort_order"], item_id),
     )
-    return db.row("SELECT * FROM works WHERE id = ?", (item_id,))
+    db.replace_work_images(item_id, values["gallery_urls"])
+    item = db.row("SELECT * FROM works WHERE id = ?", (item_id,))
+    if not item:
+        raise HTTPException(status_code=404, detail="作品集不存在")
+    return db.normalize_work(item)
 
 
 @app.delete("/api/v1/admin/works/{item_id}", dependencies=[Depends(require_admin)])
