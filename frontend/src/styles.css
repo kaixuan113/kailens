@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Serif+SC:wght@400;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #24231f;
+  background: #f3f0e9;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html { scroll-behavior: smooth; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input, textarea, select { font: inherit; }
+::selection { background: #a04f35; color: #fff; }
+
+.reveal { animation: reveal 700ms ease both; }
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.prose-kailens { color: rgb(36 35 31 / 0.78); font-family: "Noto Serif SC", serif; font-size: 1.05rem; line-height: 2; }
+.prose-kailens h2 { color: #24231f; font-size: 1.9rem; line-height: 1.4; margin: 2.5rem 0 1rem; }
+.prose-kailens h3 { color: #24231f; font-size: 1.35rem; margin: 2rem 0 0.75rem; }
+.prose-kailens p { margin: 1.25rem 0; }
+.prose-kailens ul, .prose-kailens ol { padding-left: 1.5rem; }
+.prose-kailens blockquote { border-left: 3px solid #a04f35; color: rgb(36 35 31 / 0.58); margin: 2rem 0; padding-left: 1.25rem; }
+.prose-kailens code { background: #e6e0d5; border-radius: 0.25rem; font-family: ui-monospace, monospace; font-size: 0.9em; padding: 0.15rem 0.35rem; }
+.prose-kailens pre { background: #24231f; border-radius: 0.75rem; color: #f3f0e9; overflow-x: auto; padding: 1.25rem; }
+.prose-kailens pre code { background: transparent; padding: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

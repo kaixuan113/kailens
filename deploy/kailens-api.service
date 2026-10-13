@@ -1,0 +1,19 @@
+[Unit]
+Description=Kai Lens FastAPI service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/kailens/backend
+EnvironmentFile=/opt/kailens/.env
+Environment=DATABASE_PATH=/opt/kailens/backend/data/kailens.db
+ExecStart=/opt/kailens/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=always
+RestartSec=3
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
