@@ -1,9 +1,10 @@
-import { Aperture, ArrowLeft, FileText, Image, ImagePlus, KeyRound, LoaderCircle, LogOut, Plus, Save, Sparkles, Trash2, X } from 'lucide-react';
+import { Aperture, ArrowLeft, FileText, Image, ImagePlus, KeyRound, LayoutTemplate, LoaderCircle, LogOut, Plus, Save, Sparkles, Trash2, X } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { adminRequest, adminUpload, adminUploadMany, api, type Post, type Skill, type Work } from '../lib/api';
+import { adminRequest, adminUpload, adminUploadMany, api, defaultHomeSettings, type HomeSettings, type Post, type Skill, type Work } from '../lib/api';
 
-type Tab = 'works' | 'posts' | 'skills';
+type Tab = 'home' | 'works' | 'posts' | 'skills';
+type RemovableTab = Exclude<Tab, 'home'>;
 
 const emptyWork: Omit<Work, 'id'> = {
   title: '', category: '街头', location: '北京', year: String(new Date().getFullYear()), image_url: '', gallery_urls: [], description: '', featured: false, sort_order: 0,
@@ -19,7 +20,8 @@ export function AdminPage() {
   const [token, setToken] = useState(() => localStorage.getItem('kailens_admin_token') ?? '');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [tab, setTab] = useState<Tab>('works');
+  const [tab, setTab] = useState<Tab>('home');
+  const [homeSettings, setHomeSettings] = useState<HomeSettings>(defaultHomeSettings);
   const [works, setWorks] = useState<Work[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -31,12 +33,13 @@ export function AdminPage() {
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      const [nextWorks, nextPosts, nextSkills] = await Promise.all([
+      const [nextHomeSettings, nextWorks, nextPosts, nextSkills] = await Promise.all([
+        adminRequest<HomeSettings>('/api/v1/admin/home-settings', token),
         adminRequest<Work[]>('/api/v1/admin/works', token),
         adminRequest<Post[]>('/api/v1/admin/posts', token),
         adminRequest<Skill[]>('/api/v1/admin/skills', token),
       ]);
-      setWorks(nextWorks); setPosts(nextPosts); setSkills(nextSkills);
+      setHomeSettings(nextHomeSettings); setWorks(nextWorks); setPosts(nextPosts); setSkills(nextSkills);
     } catch {
       localStorage.removeItem('kailens_admin_token');
       setToken('');
@@ -64,6 +67,15 @@ export function AdminPage() {
     setWorkForm(emptyWork); setNotice('作品已保存'); await load();
   }
 
+  async function saveHomeSettings(event: FormEvent) {
+    event.preventDefault();
+    const saved = await adminRequest<HomeSettings>('/api/v1/admin/home-settings', token, {
+      method: 'PUT',
+      body: JSON.stringify(homeSettings),
+    });
+    setHomeSettings(saved); setNotice('首页设置已保存，访问首页即可查看');
+  }
+
   async function savePost(event: FormEvent) {
     event.preventDefault();
     const path = postForm.id ? `/api/v1/admin/posts/${postForm.id}` : '/api/v1/admin/posts';
@@ -80,7 +92,7 @@ export function AdminPage() {
     setSkillForm(emptySkill); setNotice('Skill 已保存'); await load();
   }
 
-  async function remove(kind: Tab, id: number) {
+  async function remove(kind: RemovableTab, id: number) {
     if (!window.confirm('确定删除？此操作不可撤销。')) return;
     await adminRequest(`/api/v1/admin/${kind}/${id}`, token, { method: 'DELETE' });
     setNotice('已删除'); await load();
@@ -106,6 +118,7 @@ export function AdminPage() {
   }
 
   const tabs: Array<{ id: Tab; label: string; icon: typeof Image }> = [
+    { id: 'home', label: '首页设置', icon: LayoutTemplate },
     { id: 'works', label: '摄影作品', icon: Image },
     { id: 'posts', label: '博客文章', icon: FileText },
     { id: 'skills', label: 'Agent Skills', icon: Sparkles },
@@ -125,6 +138,7 @@ export function AdminPage() {
         </aside>
         <main className="space-y-6 md:col-span-9 lg:col-span-10">
           {notice && <button onClick={() => setNotice('')} className="w-full rounded-xl bg-olive px-4 py-3 text-left text-sm text-white">{notice} · 点击关闭</button>}
+          {tab === 'home' && <HomeSettingsManager token={token} form={homeSettings} setForm={setHomeSettings} save={saveHomeSettings} />}
           {tab === 'works' && <WorkManager token={token} items={works} form={workForm} setForm={setWorkForm} save={saveWork} remove={(id) => remove('works', id)} />}
           {tab === 'posts' && <PostManager token={token} items={posts} form={postForm} setForm={setPostForm} save={savePost} remove={(id) => remove('posts', id)} />}
           {tab === 'skills' && <SkillManager items={skills} form={skillForm} setForm={setSkillForm} save={saveSkill} remove={(id) => remove('skills', id)} />}
@@ -136,6 +150,48 @@ export function AdminPage() {
 
 const fieldClass = 'w-full rounded-xl border border-ink/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-rust';
 const labelClass = 'space-y-2 text-sm text-ink/60';
+
+function HomeSettingsManager({ token, form, setForm, save }: { token: string; form: HomeSettings; setForm: (value: HomeSettings) => void; save: (event: FormEvent) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+
+  async function uploadHero(file?: File) {
+    if (!file) return;
+    setUploading(true); setUploadError('');
+    try {
+      const result = await adminUpload(file, token);
+      setForm({ ...form, hero_image_url: result.url });
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : '首页图片上传失败');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return <>
+    <div><h1 className="font-serif text-4xl">首页设置</h1><p className="mt-1 text-sm text-ink/45">编辑首页首屏图片与文字，保存后立即生效</p></div>
+    <form onSubmit={save} className="grid gap-4 rounded-2xl bg-paper p-5 lg:grid-cols-2">
+      <div className="overflow-hidden rounded-2xl bg-fog lg:col-span-2">
+        <img src={form.hero_image_url} alt={form.hero_alt || '首页大图预览'} className="aspect-video w-full object-cover" />
+      </div>
+      <label className={`flex cursor-pointer items-center justify-center gap-3 rounded-xl border border-dashed border-ink/20 bg-white px-5 py-4 text-sm transition hover:border-rust hover:text-rust lg:col-span-2 ${uploading ? 'pointer-events-none opacity-60' : ''}`}>
+        <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void uploadHero(file); }} />
+        {uploading ? <LoaderCircle className="animate-spin" size={18} /> : <ImagePlus size={18} />}
+        {uploading ? '正在上传首页图片…' : '选择一张新图片（JPG、PNG、WebP，最大 12MB）'}
+      </label>
+      {uploadError && <p className="rounded-xl bg-rust/10 p-3 text-sm text-rust lg:col-span-2">{uploadError}</p>}
+      <label className={labelClass}>顶部小标题<input required className={fieldClass} value={form.portfolio_label} onChange={(event) => setForm({ ...form, portfolio_label: event.target.value })} /></label>
+      <label className={labelClass}>中文引导语<input required className={fieldClass} value={form.eyebrow} onChange={(event) => setForm({ ...form, eyebrow: event.target.value })} /></label>
+      <label className={labelClass}>主标题第一行<input required className={fieldClass} value={form.title_primary} onChange={(event) => setForm({ ...form, title_primary: event.target.value })} /></label>
+      <label className={labelClass}>主标题第二行<input required className={fieldClass} value={form.title_accent} onChange={(event) => setForm({ ...form, title_accent: event.target.value })} /></label>
+      <label className={`${labelClass} lg:col-span-2`}>首页介绍<textarea required className={fieldClass} rows={3} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
+      <label className={`${labelClass} lg:col-span-2`}>图片无障碍描述<input required className={fieldClass} value={form.hero_alt} onChange={(event) => setForm({ ...form, hero_alt: event.target.value })} placeholder="例如：公路穿过红色山谷" /></label>
+      <label className={labelClass}>图片左侧说明<input className={fieldClass} value={form.caption_left} onChange={(event) => setForm({ ...form, caption_left: event.target.value })} /></label>
+      <label className={labelClass}>图片右侧说明<input className={fieldClass} value={form.caption_right} onChange={(event) => setForm({ ...form, caption_right: event.target.value })} /></label>
+      <button disabled={uploading} className="flex items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-paper transition hover:bg-rust disabled:cursor-not-allowed disabled:opacity-40 lg:col-span-2"><Save size={16} /> 保存首页设置</button>
+    </form>
+  </>;
+}
 
 function WorkManager({ token, items, form, setForm, save, remove }: { token: string; items: Work[]; form: Omit<Work, 'id'> & { id?: number }; setForm: (value: typeof form) => void; save: (event: FormEvent) => void; remove: (id: number) => void }) {
   const [uploading, setUploading] = useState(false);
