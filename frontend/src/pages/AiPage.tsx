@@ -57,7 +57,7 @@ export function AiPage() {
               </button>
             ))}
           </div>
-          <p className="mt-8 text-xs leading-5 text-paper/35">Skill 可在管理员后台新建和编辑。模型 API 未配置时，系统将使用演示模式。</p>
+          <p className="mt-8 text-xs leading-5 text-paper/35">Skill 会根据当前场景加载。模型 API 未配置时，系统将使用演示模式。</p>
         </aside>
         <section className="flex min-h-[620px] flex-col lg:col-span-8">
           <div className="flex-1 space-y-6 overflow-y-auto p-6 md:p-10">
