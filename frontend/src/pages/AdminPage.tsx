@@ -1,4 +1,4 @@
-import { Aperture, ArrowLeft, FileText, Image, ImagePlus, KeyRound, LayoutTemplate, LoaderCircle, LogOut, Plus, RotateCcw, Save, Sparkles, Trash2, X } from 'lucide-react';
+import { Aperture, ArrowLeft, FileText, Image, ImagePlus, KeyRound, LayoutTemplate, LoaderCircle, LogOut, RotateCcw, Save, Sparkles, Trash2, X } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminRequest, adminUpload, adminUploadMany, api, defaultHomeSettings, type HomeSettings, type Post, type Skill, type Work } from '../lib/api';
@@ -235,7 +235,7 @@ function WorkManager({ token, items, form, setForm, save, remove }: { token: str
     });
   }
 
-  return <ManagerShell title="摄影作品" count={items.length} onNew={() => setForm(emptyWork)}>
+  return <ManagerShell title="摄影作品" count={items.length} editing={Boolean(form.id)} onCancelEdit={() => setForm(emptyWork)}>
     <form onSubmit={save} className="grid gap-4 rounded-2xl bg-paper p-5 lg:grid-cols-2">
       <label className={labelClass}>作品标题<input required className={fieldClass} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
       <label className={labelClass}>分类<input className={fieldClass} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></label>
@@ -272,7 +272,7 @@ function WorkManager({ token, items, form, setForm, save, remove }: { token: str
 }
 
 function PostManager({ token, items, form, setForm, save, remove }: { token: string; items: Post[]; form: Omit<Post, 'id'> & { id?: number }; setForm: (value: typeof form) => void; save: (event: FormEvent) => void; remove: (id: number) => void }) {
-  return <ManagerShell title="博客文章" count={items.length} onNew={() => setForm(emptyPost)}>
+  return <ManagerShell title="博客文章" count={items.length} editing={Boolean(form.id)} onCancelEdit={() => setForm(emptyPost)}>
     <form onSubmit={save} className="grid gap-4 rounded-2xl bg-paper p-5 lg:grid-cols-2">
       <label className={labelClass}>标题<input required className={fieldClass} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
       <label className={labelClass}>Slug<input required className={fieldClass} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="my-first-post" /></label>
@@ -289,7 +289,7 @@ function PostManager({ token, items, form, setForm, save, remove }: { token: str
 }
 
 function SkillManager({ items, form, setForm, save, remove }: { items: Skill[]; form: Omit<Skill, 'id'> & { id?: number }; setForm: (value: typeof form) => void; save: (event: FormEvent) => void; remove: (id: number) => void }) {
-  return <ManagerShell title="Agent Skills" count={items.length} onNew={() => setForm(emptySkill)}>
+  return <ManagerShell title="Agent Skills" count={items.length} editing={Boolean(form.id)} onCancelEdit={() => setForm(emptySkill)}>
     <form onSubmit={save} className="grid gap-4 rounded-2xl bg-paper p-5 lg:grid-cols-2">
       <label className={labelClass}>Skill 名称<input required className={fieldClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
       <label className={labelClass}>简短说明<input required className={fieldClass} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
@@ -321,8 +321,8 @@ function RecycleBinManager({ items, restore }: { items: Work[]; restore: (id: nu
   </>;
 }
 
-function ManagerShell({ title, count, onNew, children }: { title: string; count: number; onNew: () => void; children: React.ReactNode }) {
-  return <><div className="flex items-center justify-between"><div><h1 className="font-serif text-4xl">{title}</h1><p className="mt-1 text-sm text-ink/45">共 {count} 条</p></div><button onClick={onNew} className="flex items-center gap-2 rounded-xl bg-rust px-4 py-3 text-sm text-white"><Plus size={16} /> 新建</button></div>{children}</>;
+function ManagerShell({ title, count, editing, onCancelEdit, children }: { title: string; count: number; editing: boolean; onCancelEdit: () => void; children: React.ReactNode }) {
+  return <><div className="flex items-center justify-between"><div><h1 className="font-serif text-4xl">{title}</h1><p className="mt-1 text-sm text-ink/45">共 {count} 条</p></div>{editing ? <button onClick={onCancelEdit} className="flex items-center gap-2 rounded-xl border border-ink/15 bg-paper px-4 py-3 text-sm text-ink/65 transition hover:border-rust hover:text-rust"><X size={16} /> 取消编辑</button> : null}</div>{children}</>;
 }
 function ItemList({ children }: { children: React.ReactNode }) { return <div className="divide-y divide-ink/10 overflow-hidden rounded-2xl bg-paper">{children}</div>; }
 function ItemRow({ title, meta, onEdit, onRemove }: { title: string; meta: string; onEdit: () => void; onRemove: () => void }) {
