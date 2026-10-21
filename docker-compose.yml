@@ -1,0 +1,38 @@
+services:
+  api:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/uploads:/app/uploads
+    expose:
+      - "8000"
+    mem_limit: 384m
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    mem_limit: 96m
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    mem_limit: 128m
+
+volumes:
+  caddy_data:
+  caddy_config:
