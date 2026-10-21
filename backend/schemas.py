@@ -12,16 +12,13 @@ class PasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=10, max_length=200)
 
 
-class HomeSettingsPayload(BaseModel):
-    portfolio_label: str = Field(..., min_length=1, max_length=80)
-    eyebrow: str = Field(..., min_length=1, max_length=80)
-    title_primary: str = Field(..., min_length=1, max_length=80)
-    title_accent: str = Field(..., min_length=1, max_length=80)
+class PortfolioSettingsPayload(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    subtitle: str = Field(..., min_length=1, max_length=80)
+    title: str = Field(..., min_length=1, max_length=80)
     description: str = Field(..., min_length=1, max_length=500)
-    hero_image_url: str = Field(..., min_length=1, max_length=1000)
-    hero_alt: str = Field(..., min_length=1, max_length=200)
-    caption_left: str = Field("", max_length=120)
-    caption_right: str = Field("", max_length=120)
+    contact: str = Field("", max_length=200)
+    featured_work_id: Optional[int] = None
 
 
 class WorkPayload(BaseModel):
@@ -34,26 +31,3 @@ class WorkPayload(BaseModel):
     description: str = Field("", max_length=1000)
     featured: bool = False
     sort_order: int = 0
-
-
-class PostPayload(BaseModel):
-    title: str = Field(..., min_length=1, max_length=160)
-    slug: str = Field(..., regex=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=160)
-    excerpt: str = Field(..., max_length=500)
-    content: str = Field(..., min_length=1)
-    cover_url: str = Field("", max_length=1000)
-    tags: List[str] = Field(default_factory=list)
-    status: str = Field("draft", regex=r"^(draft|published)$")
-    published_at: Optional[str] = None
-
-
-class SkillPayload(BaseModel):
-    name: str = Field(..., min_length=1, max_length=80)
-    description: str = Field(..., max_length=300)
-    instructions: str = Field(..., min_length=1, max_length=10000)
-    enabled: bool = True
-
-
-class ChatRequest(BaseModel):
-    message: str = Field(..., min_length=1, max_length=4000)
-    skill_id: Optional[int] = None

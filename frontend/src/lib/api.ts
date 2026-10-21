@@ -11,116 +11,103 @@ export type Work = {
   sort_order: number;
   deleted_at?: string | null;
 };
-
-export type Post = {
-  id: number;
-  title: string;
-  slug: string;
-  excerpt: string;
-  content: string;
-  cover_url: string;
-  tags: string[];
-  status: 'draft' | 'published';
-  published_at: string;
+export type WorkPageResult = {
+  items: Work[];
+  total: number;
+  total_all: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  categories: { category: string; count: number }[];
+  featured: Work | null;
 };
-
-export type Skill = {
-  id: number;
+export type PortfolioSettings = {
   name: string;
+  subtitle: string;
+  title: string;
   description: string;
-  instructions?: string;
-  enabled: boolean;
+  contact: string;
+  featured_work_id: number | null;
 };
-
-export type HomeSettings = {
-  portfolio_label: string;
-  eyebrow: string;
-  title_primary: string;
-  title_accent: string;
-  description: string;
-  hero_image_url: string;
-  hero_alt: string;
-  caption_left: string;
-  caption_right: string;
+export const defaultSettings: PortfolioSettings = {
+  name: "KAI LENS",
+  subtitle: "个人摄影作品集",
+  title: "目之所及，皆为故事。",
+  description: "走过的地方，遇见的人，和不想遗忘的日常。",
+  contact: "",
+  featured_work_id: null,
 };
-
-export const defaultHomeSettings: HomeSettings = {
-  portfolio_label: 'Portfolio · 2026',
-  eyebrow: '光落下的地方',
-  title_primary: 'Still',
-  title_accent: 'moving.',
-  description: '我拍摄城市之间的停顿、陌生人的一瞥，以及那些差一点被忽略的日常。',
-  hero_image_url: '/images/hero.jpg',
-  hero_alt: '公路穿过红色山谷',
-  caption_left: '37.7749° N',
-  caption_right: 'Personal archive',
-};
-
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+  }
+}
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers: { "Content-Type": "application/json", ...options.headers },
   });
   if (!response.ok) {
-    const payload = await response.json().catch(() => ({ detail: '请求失败' }));
-    throw new Error(payload.detail ?? '请求失败');
+    const body = await response.json().catch(() => ({}));
+    const detail =
+      typeof body.detail === "string"
+        ? body.detail
+        : response.status === 422
+          ? "请检查输入内容是否完整、长度是否超出限制"
+          : "请求失败，请稍后重试";
+    throw new ApiError(detail, response.status);
   }
   return response.json() as Promise<T>;
 }
-
 export const api = {
-  homeSettings: () => request<HomeSettings>('/api/v1/home-settings'),
-  works: () => request<Work[]>('/api/v1/works'),
+  settings: () => request<PortfolioSettings>("/api/v1/portfolio-settings"),
+  workPage: (page: number, category: string) => {
+    const query = new URLSearchParams({ page: String(page), page_size: "12" });
+    if (category !== "全部") query.set("category", category);
+    return request<WorkPageResult>(`/api/v1/works/page?${query}`);
+  },
+  works: () => request<Work[]>("/api/v1/works"),
   work: (id: number) => request<Work>(`/api/v1/works/${id}`),
-  posts: () => request<Post[]>('/api/v1/posts'),
-  post: (slug: string) => request<Post>(`/api/v1/posts/${slug}`),
-  skills: () => request<Skill[]>('/api/v1/skills'),
-  chat: (message: string, skillId?: number) =>
-    request<{ answer: string; mode: string }>('/api/v1/agent/chat', {
-      method: 'POST',
-      body: JSON.stringify({ message, skill_id: skillId }),
-    }),
   adminLogin: (password: string) =>
-    request<{ token: string }>('/api/v1/admin/login', {
-      method: 'POST',
+    request<{ token: string }>("/api/v1/admin/login", {
+      method: "POST",
       body: JSON.stringify({ password }),
     }),
 };
-
-export async function adminRequest<T>(
+export function adminRequest<T>(
   path: string,
   token: string,
   options: RequestInit = {},
-): Promise<T> {
+) {
   return request<T>(path, {
     ...options,
-    headers: { Authorization: `Bearer ${token}`, ...options.headers },
+    headers: { ...options.headers, Authorization: `Bearer ${token}` },
   });
 }
-
-export async function adminUpload(file: File, token: string): Promise<{ url: string }> {
+export async function adminUpload(
+  file: File,
+  token: string,
+): Promise<{ url: string }> {
   const form = new FormData();
-  form.append('file', file);
-  const response = await fetch('/api/v1/admin/upload', {
-    method: 'POST',
+  form.append("file", file);
+  const response = await fetch("/api/v1/admin/upload", {
+    method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     body: form,
   });
   if (!response.ok) {
-    const payload = await response.json().catch(() => ({ detail: '上传失败' }));
-    throw new Error(payload.detail ?? '上传失败');
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(body.detail || "图片上传失败", response.status);
   }
-  return response.json() as Promise<{ url: string }>;
+  return response.json();
 }
-
-export async function adminUploadMany(files: File[], token: string): Promise<string[]> {
-  const urls: string[] = [];
-  for (const file of files) {
-    const result = await adminUpload(file, token);
-    urls.push(result.url);
-  }
-  return urls;
+export function photoUrls(work: Pick<Work, "image_url" | "gallery_urls">) {
+  return [...new Set([...work.gallery_urls, work.image_url].filter(Boolean))];
+}
+// Legacy template images never enter the new public portfolio.
+export function isPersonalWork(work: Work) {
+  return !work.image_url.startsWith("/images/");
 }

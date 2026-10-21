@@ -1,24 +1,36 @@
-import { ArrowUpRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import type { Work } from '../lib/api';
-
+import { ArrowUpRight } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { photoUrls, type Work } from "../lib/api";
 export function WorkCard({ work, index }: { work: Work; index: number }) {
+  const { search } = useLocation();
   return (
-    <Link to={`/works/${work.id}`} className="group reveal block">
-      <div className="overflow-hidden bg-fog">
+    <Link
+      to={`/works/${work.id}`}
+      state={{ portfolioSearch: search }}
+      className="work-card"
+    >
+      <div className="work-image">
         <img
           src={work.image_url}
           alt={work.title}
-          loading={index > 1 ? 'lazy' : 'eager'}
-          className="work-card-image w-full object-cover"
+          loading={index < 2 ? "eager" : "lazy"}
         />
+        <span className="image-count">
+          {String(photoUrls(work).length).padStart(2, "0")} 张影像
+        </span>
+        <span className="work-open">
+          <ArrowUpRight size={20} />
+        </span>
       </div>
-      <div className="flex items-start justify-between border-b border-ink/15 py-4">
+      <div className="work-caption">
+        <span className="work-number">
+          {String(index + 1).padStart(2, "0")}
+        </span>
         <div>
-          <h3 className="font-serif text-xl">{work.title}</h3>
-          <p className="mt-1.5 text-xs uppercase tracking-widest text-ink/45">{work.location} · {work.year}</p>
+          <h3>{work.title}</h3>
+          <p>{[work.category, work.location].filter(Boolean).join(" / ")}</p>
         </div>
-        <ArrowUpRight className="mt-1 text-ink/45 transition group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-rust" size={16} strokeWidth={1.5} />
+        <span className="work-year">{work.year}</span>
       </div>
     </Link>
   );

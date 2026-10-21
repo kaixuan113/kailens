@@ -1,16 +1,8 @@
-# Kai Lens API
+# KAI LENS 摄影 API
 
-FastAPI + SQLite 后端，提供公开内容接口、管理员认证、作品/文章/Skill CRUD、图片上传和 OpenAI 兼容的 Agent 调用。
+FastAPI + SQLite，提供个人作品展示、展厅设置、管理员认证、作品集管理、回收站恢复和图片上传。
 
-## 启动
+公开接口：`/api/v1/works`、`/api/v1/works/{id}`、`/api/v1/portfolio-settings`、`/api/v1/health`。
+管理员接口位于 `/api/v1/admin/`，除登录外均需要 Bearer Token。
 
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-ADMIN_PASSWORD=kailens-local uvicorn main:app --reload
-```
-
-接口文档位于 `http://localhost:8000/api/docs`。
-
-生产环境必须设置 `APP_SECRET`、`ADMIN_PASSWORD` 和 `ENVIRONMENT=production`。管理员密码仅在数据库首次初始化时写入，之后不会因环境变量变化而自动覆盖。
+本地启动与部署见根目录 README。数据库初始化不会创建示例作品，也不会覆盖已上传作品、图片或管理员密码。旧版博客与 AI 接口已移除，历史表不主动删除。

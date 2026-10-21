@@ -1,81 +1,205 @@
-import { ArrowDown, Camera, MapPin } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { WorkCard } from '../components/WorkCard';
-import { api, defaultHomeSettings, type HomeSettings, type Work } from '../lib/api';
-
+import { ArrowDown, ArrowUpRight, Grid2X2, Rows2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Pagination } from "../components/Pagination";
+import { Link, useSearchParams } from "react-router-dom";
+import { WorkCard } from "../components/WorkCard";
+import { usePortfolio } from "../components/SiteLayout";
+import { api, photoUrls, type WorkPageResult } from "../lib/api";
 export function HomePage() {
-  const [works, setWorks] = useState<Work[]>([]);
-  const [homeSettings, setHomeSettings] = useState<HomeSettings>(defaultHomeSettings);
-  const [error, setError] = useState('');
-
+  const settings = usePortfolio();
+  const [query, setQuery] = useSearchParams();
+  const parsedPage = Number(query.get("page") || 1);
+  const page =
+    Number.isSafeInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const category = query.get("category") || "全部";
+  const [data, setData] = useState<WorkPageResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [view, setView] = useState<"gallery" | "list">("gallery");
   useEffect(() => {
-    api.works().then(setWorks).catch((err: Error) => setError(err.message));
-    api.homeSettings().then(setHomeSettings).catch(() => undefined);
-  }, []);
-
+    let active = true;
+    setLoading(true);
+    setError("");
+    api
+      .workPage(page, category)
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((err) => {
+        if (active) setError(err.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [page, category]);
+  useEffect(() => {
+    if (!loading && window.location.hash === "#collection")
+      document.getElementById("collection")?.scrollIntoView({ block: "start" });
+  }, [loading]);
+  function navigate(nextPage: number, nextCategory = category) {
+    const next = new URLSearchParams();
+    if (nextPage > 1) next.set("page", String(nextPage));
+    if (nextCategory !== "全部") next.set("category", nextCategory);
+    setQuery(next);
+    document.getElementById("collection")?.scrollIntoView({ block: "start" });
+  }
+  const featured = data?.featured;
+  const categories = [
+    "全部",
+    ...(data?.categories.map((c) => c.category) || []),
+  ];
+  const works = data?.items || [];
+  const shown = works;
   return (
     <>
-      <section className="mx-auto grid max-w-screen-xl gap-8 px-5 py-8 md:grid-cols-12 md:gap-12 md:px-8 md:py-12 lg:gap-16">
-        <div className="flex flex-col md:col-span-4">
-          <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-ink/50">
-            <span className="h-px w-8 bg-rust" /> {homeSettings.portfolio_label}
-          </div>
-          <div className="my-12 md:my-auto">
-            <p className="mb-4 text-xs uppercase tracking-widest text-ink/55">{homeSettings.eyebrow}</p>
-            <h1 className="font-serif text-5xl leading-none sm:text-6xl lg:text-7xl">
-              {homeSettings.title_primary}<br /><span className="italic text-rust">{homeSettings.title_accent}</span>
-            </h1>
-            <p className="mt-6 max-w-sm text-sm leading-7 text-ink/65">
-              {homeSettings.description}
-            </p>
-          </div>
-          <a href="#works" className="flex w-fit items-center gap-3 border-b border-ink/20 pb-2 text-xs uppercase tracking-widest text-ink/55 transition hover:border-rust hover:text-rust">
-            Explore <ArrowDown size={14} strokeWidth={1.5} />
-          </a>
+      <section className="intro">
+        <div className="intro-top">
+          <p className="eyebrow">
+            <span />
+            摄影，是一种观看的方式
+          </p>
+          <span className="archive-label">
+            影像档案 / {new Date().getFullYear()}
+          </span>
         </div>
-        <figure className="md:col-span-8">
-          <div className="hero-image-frame overflow-hidden bg-fog">
-            <img
-              src={homeSettings.hero_image_url}
-              alt={homeSettings.hero_alt}
-              className="hero-image h-full w-full object-cover"
-            />
-          </div>
-          <figcaption className="mt-3 flex justify-between border-b border-ink/15 pb-3 text-xs text-ink/45">
-            <span>{homeSettings.caption_left}</span>
-            <span>{homeSettings.caption_right}</span>
-          </figcaption>
-        </figure>
-      </section>
-
-      <section id="works" className="mx-auto max-w-screen-xl px-5 py-20 md:px-8 md:py-24">
-        <div className="mb-12 flex flex-col justify-between gap-6 border-t border-ink/15 pt-5 md:flex-row md:items-end">
+        <div className="intro-heading">
+          <h1>{settings.title}</h1>
           <div>
-            <p className="text-xs uppercase tracking-widest text-rust">Selected works / 01</p>
-            <h2 className="mt-3 font-serif text-4xl md:text-5xl">近期作品</h2>
+            <p>{settings.description}</p>
+            <a href="#collection" className="text-link">
+              走进影像 <ArrowDown size={15} />
+            </a>
           </div>
-          <p className="max-w-sm text-sm leading-6 text-ink/50">从旅行、街头到自然，按下快门不是结束，而是重新理解一次眼前的世界。</p>
-        </div>
-        {error && <p className="border border-rust/20 bg-rust/5 p-4 text-sm text-rust">{error}</p>}
-        <div className="grid gap-x-6 gap-y-12 md:grid-cols-2 lg:grid-cols-3">
-          {works.map((work, index) => <WorkCard key={work.id} work={work} index={index} />)}
         </div>
       </section>
-
-      <section className="border-y border-ink/10 bg-fog/40 px-5 py-20 md:px-8">
-        <div className="mx-auto grid max-w-screen-xl gap-12 md:grid-cols-12">
-          <div className="md:col-span-7">
-            <p className="text-xs uppercase tracking-widest text-rust">About / 02</p>
-            <h2 className="mt-5 max-w-2xl font-serif text-4xl leading-snug md:text-5xl">镜头是我理解世界的一种慢方法。</h2>
-          </div>
-          <div className="flex flex-col justify-end gap-8 md:col-span-5">
-            <p className="text-sm leading-7 text-ink/60">这里既是摄影档案，也是持续生长的个人网站。我会记录拍摄背后的故事、技术实践，以及关于 AI Agent 的小实验。</p>
-            <div className="flex flex-wrap gap-x-8 gap-y-3 border-t border-ink/15 pt-5 text-xs uppercase tracking-wider text-ink/55">
-              <span className="flex items-center gap-2"><Camera size={15} strokeWidth={1.5} /> Visual stories</span>
-              <span className="flex items-center gap-2"><MapPin size={15} strokeWidth={1.5} /> Beijing, CN</span>
+      {featured && (
+        <section className="featured">
+          <Link to={`/works/${featured.id}`} className="featured-image">
+            <img
+              src={featured.image_url}
+              alt={featured.title}
+              fetchPriority="high"
+            />
+            <div className="featured-shade" />
+            <div className="featured-caption">
+              <div>
+                <span>本期精选 · {featured.year}</span>
+                <h2>{featured.title}</h2>
+                <p>
+                  {featured.description ||
+                    [featured.location, featured.category]
+                      .filter(Boolean)
+                      .join(" · ")}
+                </p>
+              </div>
+              <span className="featured-arrow">
+                <ArrowUpRight size={25} />
+              </span>
             </div>
+          </Link>
+          <div className="featured-meta">
+            <span>{settings.name} / 摄影作品档案</span>
+            <span>
+              {String(photoUrls(featured).length).padStart(2, "0")} 张影像，
+              {String(photoUrls(featured).length).padStart(2, "0")} 个瞬间
+            </span>
+          </div>
+        </section>
+      )}
+      {loading && !data && (
+        <div className="loading-gallery" aria-label="作品加载中">
+          <div />
+          <p>正在展开影像…</p>
+        </div>
+      )}
+      <section id="collection" className="collection">
+        <div className="collection-heading">
+          <div>
+            <p className="eyebrow">作品集</p>
+            <h2>
+              每一程，都值得回望
+              <span>（{String(data?.total_all || 0).padStart(2, "0")}）</span>
+            </h2>
+          </div>
+          <p>关于远方，也关于身旁。</p>
+        </div>
+        <div className="collection-toolbar">
+          <div className="category-tabs" aria-label="作品分类">
+            {categories.map((c) => (
+              <button
+                key={c}
+                className={c === category ? "selected" : ""}
+                aria-pressed={category === c}
+                onClick={() => navigate(1, c)}
+              >
+                {c}
+                {c === "全部" && <sup>{data?.total_all || 0}</sup>}
+              </button>
+            ))}
+          </div>
+          <div className="view-switch">
+            <button
+              title="画廊视图"
+              aria-label="画廊视图"
+              aria-pressed={view === "gallery"}
+              className={view === "gallery" ? "selected" : ""}
+              onClick={() => setView("gallery")}
+            >
+              <Grid2X2 size={17} />
+            </button>
+            <button
+              title="列表视图"
+              aria-label="列表视图"
+              aria-pressed={view === "list"}
+              className={view === "list" ? "selected" : ""}
+              onClick={() => setView("list")}
+            >
+              <Rows2 size={18} />
+            </button>
           </div>
         </div>
+        {error && (
+          <div className="empty-state" role="alert">
+            {error}
+            <button onClick={() => window.location.reload()}>重新加载</button>
+          </div>
+        )}
+        {!loading && !error && shown.length === 0 && (
+          <div className="empty-state">新的影像，正在路上。</div>
+        )}
+        <div className={`work-grid ${view === "list" ? "work-list" : ""}`}>
+          {!error &&
+            !loading &&
+            shown.map((work, index) => (
+              <WorkCard
+                key={work.id}
+                work={work}
+                index={((data?.page || 1) - 1) * 12 + index}
+              />
+            ))}
+        </div>
+        {loading && data && (
+          <p className="page-loading" role="status">
+            正在加载作品…
+          </p>
+        )}
+        {!loading && !error && data && (
+          <Pagination
+            page={data.page}
+            total={data.total}
+            onChange={(n) => navigate(n)}
+          />
+        )}
+        {(data?.total_all || 0) > 0 && (
+          <div className="collection-end">
+            <span />
+            <p>暂时走到这里，还有更多故事在路上。</p>
+            <span />
+          </div>
+        )}
       </section>
     </>
   );

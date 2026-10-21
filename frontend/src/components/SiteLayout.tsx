@@ -1,40 +1,64 @@
-import { Aperture, ArrowUpRight } from 'lucide-react';
-import { Outlet, useLocation } from 'react-router-dom';
-
+import { createContext, useContext, useEffect, useState } from "react";
+import { ArrowUpRight } from "lucide-react";
+import { Link, Outlet, useLocation } from "react-router-dom";
+import { api, defaultSettings, type PortfolioSettings } from "../lib/api";
+const SettingsContext = createContext<PortfolioSettings>(defaultSettings);
+export const usePortfolio = () => useContext(SettingsContext);
 export function SiteLayout() {
-  const { pathname } = useLocation();
-  const isBlog = pathname === '/blog' || pathname.startsWith('/blog/');
-  const isAi = pathname === '/ai';
-  const section = isBlog ? 'JOURNAL' : isAi ? 'AI LAB' : 'PHOTOGRAPHY';
-  const footerTitle = isBlog ? '把想法，写慢一点。' : isAi ? '把问题，拆开一点。' : '把一瞬，留久一点。';
-  const footerMeta = isBlog ? 'Notes & Essays' : isAi ? 'Agent Experiments' : 'Personal Photography Archive';
-
+  const [settings, setSettings] = useState(defaultSettings);
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    api
+      .settings()
+      .then(setSettings)
+      .catch(() => undefined);
+  }, []);
+  useEffect(() => {
+    if (hash === "#collection")
+      document.getElementById("collection")?.scrollIntoView();
+    else window.scrollTo(0, 0);
+  }, [pathname, hash]);
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-ink/10 bg-paper/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-screen-xl items-center justify-between px-5 py-3 md:px-8">
-          <div className="flex items-center gap-2.5" aria-label={`Kai Lens ${section}`}>
-            <span className="grid h-8 w-8 place-items-center rounded-full border border-ink/15">
-              <Aperture size={16} strokeWidth={1.5} />
+    <SettingsContext.Provider value={settings}>
+      <div className="portfolio">
+        <header className="site-header">
+          <Link className="wordmark" to="/" aria-label="返回摄影作品首页">
+            <span className="brand-symbol">
+              k<span>.</span>
             </span>
-            <span className="text-xs font-semibold tracking-widest">KAI LENS</span>
+            <span>
+              {settings.name}
+              <small>{settings.subtitle}</small>
+            </span>
+          </Link>
+          <div className="header-right">
+            <span className="availability">
+              <i />
+              光影持续记录中
+            </span>
+            <Link className="nav-active" to="/">
+              摄影作品 <ArrowUpRight size={14} />
+            </Link>
           </div>
-          <span className="text-xs tracking-widest text-ink/40">{section}</span>
-        </div>
-      </header>
-      <main className="pt-14"><Outlet /></main>
-      <footer className="px-5 py-9 md:px-8">
-        <div className="mx-auto flex max-w-screen-xl flex-col justify-between gap-6 md:flex-row md:items-end">
-          <div>
-            <p className="font-serif text-2xl">{footerTitle}</p>
-            <p className="mt-2 text-xs uppercase tracking-wider text-ink/45">{footerMeta}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-5 text-xs text-ink/55">
-            <a href="mailto:hello@kailens.com" className="flex items-center gap-1 hover:text-rust">联系 <ArrowUpRight size={14} /></a>
-            <span>© {new Date().getFullYear()} Kai Lens</span>
-          </div>
-        </div>
-      </footer>
-    </div>
+        </header>
+        <main>
+          <Outlet />
+        </main>
+        <footer className="site-footer">
+          <Link to="/" className="footer-brand">
+            {settings.name}
+            <span>© {new Date().getFullYear()}</span>
+          </Link>
+          <p>让每一次停留，都有所看见。</p>
+          {settings.contact ? (
+            <a href={`mailto:${settings.contact}`}>
+              联系摄影师 <ArrowUpRight size={14} />
+            </a>
+          ) : (
+            <span className="footer-note">以影像，收藏时间。</span>
+          )}
+        </footer>
+      </div>
+    </SettingsContext.Provider>
   );
 }

@@ -12,3 +12,8 @@ backend/data/*
 !backend/data/.gitkeep
 backend/uploads/*
 !backend/uploads/.gitkeep
+
+**/__pycache__/
+
+# 本地页面预览与个人照片不随代码提交
+artifacts/
