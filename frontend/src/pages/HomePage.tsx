@@ -1,14 +1,16 @@
 import { ArrowDown, Camera, MapPin } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { WorkCard } from '../components/WorkCard';
-import { api, type Work } from '../lib/api';
+import { api, defaultHomeSettings, type HomeSettings, type Work } from '../lib/api';
 
 export function HomePage() {
   const [works, setWorks] = useState<Work[]>([]);
+  const [homeSettings, setHomeSettings] = useState<HomeSettings>(defaultHomeSettings);
   const [error, setError] = useState('');
 
   useEffect(() => {
     api.works().then(setWorks).catch((err: Error) => setError(err.message));
+    api.homeSettings().then(setHomeSettings).catch(() => undefined);
   }, []);
 
   return (
@@ -16,15 +18,15 @@ export function HomePage() {
       <section className="mx-auto grid max-w-screen-xl gap-8 px-5 py-8 md:grid-cols-12 md:gap-12 md:px-8 md:py-12 lg:gap-16">
         <div className="flex flex-col md:col-span-4">
           <div className="flex items-center gap-3 text-xs uppercase tracking-widest text-ink/50">
-            <span className="h-px w-8 bg-rust" /> Portfolio · 2026
+            <span className="h-px w-8 bg-rust" /> {homeSettings.portfolio_label}
           </div>
           <div className="my-12 md:my-auto">
-            <p className="mb-4 text-xs uppercase tracking-widest text-ink/55">光落下的地方</p>
+            <p className="mb-4 text-xs uppercase tracking-widest text-ink/55">{homeSettings.eyebrow}</p>
             <h1 className="font-serif text-5xl leading-none sm:text-6xl lg:text-7xl">
-              Still<br /><span className="italic text-rust">moving.</span>
+              {homeSettings.title_primary}<br /><span className="italic text-rust">{homeSettings.title_accent}</span>
             </h1>
             <p className="mt-6 max-w-sm text-sm leading-7 text-ink/65">
-              我拍摄城市之间的停顿、陌生人的一瞥，以及那些差一点被忽略的日常。
+              {homeSettings.description}
             </p>
           </div>
           <a href="#works" className="flex w-fit items-center gap-3 border-b border-ink/20 pb-2 text-xs uppercase tracking-widest text-ink/55 transition hover:border-rust hover:text-rust">
@@ -34,14 +36,14 @@ export function HomePage() {
         <figure className="md:col-span-8">
           <div className="hero-image-frame overflow-hidden bg-fog">
             <img
-              src="/images/hero.jpg"
-              alt="公路穿过红色山谷"
+              src={homeSettings.hero_image_url}
+              alt={homeSettings.hero_alt}
               className="hero-image h-full w-full object-cover"
             />
           </div>
           <figcaption className="mt-3 flex justify-between border-b border-ink/15 pb-3 text-xs text-ink/45">
-            <span>37.7749° N</span>
-            <span>Personal archive</span>
+            <span>{homeSettings.caption_left}</span>
+            <span>{homeSettings.caption_right}</span>
           </figcaption>
         </figure>
       </section>

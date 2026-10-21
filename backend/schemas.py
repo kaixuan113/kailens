@@ -12,6 +12,18 @@ class PasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=10, max_length=200)
 
 
+class HomeSettingsPayload(BaseModel):
+    portfolio_label: str = Field(..., min_length=1, max_length=80)
+    eyebrow: str = Field(..., min_length=1, max_length=80)
+    title_primary: str = Field(..., min_length=1, max_length=80)
+    title_accent: str = Field(..., min_length=1, max_length=80)
+    description: str = Field(..., min_length=1, max_length=500)
+    hero_image_url: str = Field(..., min_length=1, max_length=1000)
+    hero_alt: str = Field(..., min_length=1, max_length=200)
+    caption_left: str = Field("", max_length=120)
+    caption_right: str = Field("", max_length=120)
+
+
 class WorkPayload(BaseModel):
     title: str = Field(..., min_length=1, max_length=120)
     category: str = Field("摄影", max_length=40)

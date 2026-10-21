@@ -13,12 +13,24 @@ from fastapi.staticfiles import StaticFiles
 
 import db
 from auth import create_token, hash_password, require_admin, verify_password
-from schemas import ChatRequest, LoginRequest, PasswordRequest, PostPayload, SkillPayload, WorkPayload
+from schemas import ChatRequest, HomeSettingsPayload, LoginRequest, PasswordRequest, PostPayload, SkillPayload, WorkPayload
 
 LOGGER = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+DEFAULT_HOME_SETTINGS = {
+    "portfolio_label": "Portfolio · 2026",
+    "eyebrow": "光落下的地方",
+    "title_primary": "Still",
+    "title_accent": "moving.",
+    "description": "我拍摄城市之间的停顿、陌生人的一瞥，以及那些差一点被忽略的日常。",
+    "hero_image_url": "/images/hero.jpg",
+    "hero_alt": "公路穿过红色山谷",
+    "caption_left": "37.7749° N",
+    "caption_right": "Personal archive",
+}
 
 app = FastAPI(title="Kai Lens API", docs_url="/api/docs", openapi_url="/api/openapi.json")
 app.add_middleware(
@@ -39,6 +51,26 @@ def startup() -> None:
 @app.get("/api/v1/health")
 def health() -> Dict[str, str]:
     return {"status": "ok"}
+
+
+def read_home_settings() -> Dict[str, str]:
+    setting = db.row("SELECT value FROM settings WHERE key = 'home_page'")
+    if not setting:
+        return dict(DEFAULT_HOME_SETTINGS)
+    try:
+        saved = json.loads(setting["value"])
+    except (TypeError, json.JSONDecodeError):
+        LOGGER.warning("Invalid home_page settings; using defaults")
+        return dict(DEFAULT_HOME_SETTINGS)
+    return {
+        key: str(saved.get(key, default_value))
+        for key, default_value in DEFAULT_HOME_SETTINGS.items()
+    }
+
+
+@app.get("/api/v1/home-settings")
+def public_home_settings():
+    return read_home_settings()
 
 
 @app.get("/api/v1/works")
@@ -123,6 +155,22 @@ def change_password(payload: PasswordRequest):
         raise HTTPException(status_code=400, detail="当前密码错误")
     db.execute("UPDATE settings SET value = ? WHERE key = 'admin_password'", (hash_password(payload.new_password),))
     return {"ok": True}
+
+
+@app.get("/api/v1/admin/home-settings", dependencies=[Depends(require_admin)])
+def admin_home_settings():
+    return read_home_settings()
+
+
+@app.put("/api/v1/admin/home-settings", dependencies=[Depends(require_admin)])
+def update_home_settings(payload: HomeSettingsPayload):
+    values = payload.dict()
+    db.execute(
+        "INSERT INTO settings (key, value) VALUES ('home_page', ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (json.dumps(values, ensure_ascii=False),),
+    )
+    return values
 
 
 @app.get("/api/v1/admin/works", dependencies=[Depends(require_admin)])
