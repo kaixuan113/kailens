@@ -80,7 +80,8 @@ def init_database() -> None:
                 title TEXT NOT NULL, category TEXT NOT NULL, location TEXT NOT NULL,
                 year TEXT NOT NULL, image_url TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
                 featured INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL DEFAULT 0,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                deleted_at TEXT
             );
             CREATE TABLE IF NOT EXISTS work_images (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,6 +108,14 @@ def init_database() -> None:
             );
             CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
             """
+        )
+        work_columns = {
+            item["name"] for item in connection.execute("PRAGMA table_info(works)").fetchall()
+        }
+        if "deleted_at" not in work_columns:
+            connection.execute("ALTER TABLE works ADD COLUMN deleted_at TEXT")
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_works_deleted_at ON works(deleted_at)"
         )
         if connection.execute("SELECT COUNT(*) FROM works").fetchone()[0] == 0:
             connection.executemany(

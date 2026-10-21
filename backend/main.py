@@ -75,12 +75,19 @@ def public_home_settings():
 
 @app.get("/api/v1/works")
 def public_works():
-    return [db.normalize_work(item) for item in db.rows("SELECT * FROM works ORDER BY sort_order, id DESC")]
+    return [
+        db.normalize_work(item)
+        for item in db.rows(
+            "SELECT * FROM works WHERE deleted_at IS NULL ORDER BY sort_order, id DESC"
+        )
+    ]
 
 
 @app.get("/api/v1/works/{item_id}")
 def public_work(item_id: int):
-    item = db.row("SELECT * FROM works WHERE id = ?", (item_id,))
+    item = db.row(
+        "SELECT * FROM works WHERE id = ? AND deleted_at IS NULL", (item_id,)
+    )
     if not item:
         raise HTTPException(status_code=404, detail="作品集不存在")
     return db.normalize_work(item)
@@ -175,7 +182,33 @@ def update_home_settings(payload: HomeSettingsPayload):
 
 @app.get("/api/v1/admin/works", dependencies=[Depends(require_admin)])
 def admin_works():
-    return [db.normalize_work(item) for item in db.rows("SELECT * FROM works ORDER BY sort_order, id DESC")]
+    return [
+        db.normalize_work(item)
+        for item in db.rows(
+            "SELECT * FROM works WHERE deleted_at IS NULL ORDER BY sort_order, id DESC"
+        )
+    ]
+
+
+@app.get("/api/v1/admin/trash/works", dependencies=[Depends(require_admin)])
+def trashed_works():
+    return [
+        db.normalize_work(item)
+        for item in db.rows(
+            "SELECT * FROM works WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC, id DESC"
+        )
+    ]
+
+
+@app.post("/api/v1/admin/trash/works/{item_id}/restore", dependencies=[Depends(require_admin)])
+def restore_work(item_id: int):
+    item = db.row(
+        "SELECT * FROM works WHERE id = ? AND deleted_at IS NOT NULL", (item_id,)
+    )
+    if not item:
+        raise HTTPException(status_code=404, detail="回收站中没有这个作品集")
+    db.execute("UPDATE works SET deleted_at = NULL WHERE id = ?", (item_id,))
+    return db.normalize_work(db.row("SELECT * FROM works WHERE id = ?", (item_id,)))
 
 
 @app.post("/api/v1/admin/works", dependencies=[Depends(require_admin)])
@@ -191,6 +224,11 @@ def create_work(payload: WorkPayload):
 
 @app.put("/api/v1/admin/works/{item_id}", dependencies=[Depends(require_admin)])
 def update_work(item_id: int, payload: WorkPayload):
+    item = db.row(
+        "SELECT * FROM works WHERE id = ? AND deleted_at IS NULL", (item_id,)
+    )
+    if not item:
+        raise HTTPException(status_code=404, detail="作品集不存在")
     values = payload.dict()
     db.execute(
         "UPDATE works SET title=?, category=?, location=?, year=?, image_url=?, description=?, featured=?, sort_order=? WHERE id=?",
@@ -198,14 +236,19 @@ def update_work(item_id: int, payload: WorkPayload):
     )
     db.replace_work_images(item_id, values["gallery_urls"])
     item = db.row("SELECT * FROM works WHERE id = ?", (item_id,))
-    if not item:
-        raise HTTPException(status_code=404, detail="作品集不存在")
     return db.normalize_work(item)
 
 
 @app.delete("/api/v1/admin/works/{item_id}", dependencies=[Depends(require_admin)])
 def delete_work(item_id: int):
-    db.execute("DELETE FROM works WHERE id = ?", (item_id,))
+    item = db.row(
+        "SELECT id FROM works WHERE id = ? AND deleted_at IS NULL", (item_id,)
+    )
+    if not item:
+        raise HTTPException(status_code=404, detail="作品集不存在")
+    db.execute(
+        "UPDATE works SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?", (item_id,)
+    )
     return {"ok": True}
 
 

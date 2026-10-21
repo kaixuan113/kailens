@@ -1,10 +1,10 @@
-import { Aperture, ArrowLeft, FileText, Image, ImagePlus, KeyRound, LayoutTemplate, LoaderCircle, LogOut, Plus, Save, Sparkles, Trash2, X } from 'lucide-react';
+import { Aperture, ArrowLeft, FileText, Image, ImagePlus, KeyRound, LayoutTemplate, LoaderCircle, LogOut, Plus, RotateCcw, Save, Sparkles, Trash2, X } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminRequest, adminUpload, adminUploadMany, api, defaultHomeSettings, type HomeSettings, type Post, type Skill, type Work } from '../lib/api';
 
-type Tab = 'home' | 'works' | 'posts' | 'skills';
-type RemovableTab = Exclude<Tab, 'home'>;
+type Tab = 'home' | 'works' | 'posts' | 'skills' | 'trash';
+type RemovableTab = Exclude<Tab, 'home' | 'trash'>;
 
 const emptyWork: Omit<Work, 'id'> = {
   title: '', category: '街头', location: '北京', year: String(new Date().getFullYear()), image_url: '', gallery_urls: [], description: '', featured: false, sort_order: 0,
@@ -23,6 +23,7 @@ export function AdminPage() {
   const [tab, setTab] = useState<Tab>('home');
   const [homeSettings, setHomeSettings] = useState<HomeSettings>(defaultHomeSettings);
   const [works, setWorks] = useState<Work[]>([]);
+  const [trashedWorks, setTrashedWorks] = useState<Work[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [notice, setNotice] = useState('');
@@ -33,13 +34,14 @@ export function AdminPage() {
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      const [nextHomeSettings, nextWorks, nextPosts, nextSkills] = await Promise.all([
+      const [nextHomeSettings, nextWorks, nextTrashedWorks, nextPosts, nextSkills] = await Promise.all([
         adminRequest<HomeSettings>('/api/v1/admin/home-settings', token),
         adminRequest<Work[]>('/api/v1/admin/works', token),
+        adminRequest<Work[]>('/api/v1/admin/trash/works', token),
         adminRequest<Post[]>('/api/v1/admin/posts', token),
         adminRequest<Skill[]>('/api/v1/admin/skills', token),
       ]);
-      setHomeSettings(nextHomeSettings); setWorks(nextWorks); setPosts(nextPosts); setSkills(nextSkills);
+      setHomeSettings(nextHomeSettings); setWorks(nextWorks); setTrashedWorks(nextTrashedWorks); setPosts(nextPosts); setSkills(nextSkills);
     } catch {
       localStorage.removeItem('kailens_admin_token');
       setToken('');
@@ -93,9 +95,15 @@ export function AdminPage() {
   }
 
   async function remove(kind: RemovableTab, id: number) {
-    if (!window.confirm('确定删除？此操作不可撤销。')) return;
+    const message = kind === 'works' ? '确定将这个作品集移入回收站？之后可以恢复。' : '确定删除？此操作不可撤销。';
+    if (!window.confirm(message)) return;
     await adminRequest(`/api/v1/admin/${kind}/${id}`, token, { method: 'DELETE' });
-    setNotice('已删除'); await load();
+    setNotice(kind === 'works' ? '作品集已移入回收站' : '已删除'); await load();
+  }
+
+  async function restoreWork(id: number) {
+    await adminRequest(`/api/v1/admin/trash/works/${id}/restore`, token, { method: 'POST' });
+    setNotice('作品集已恢复'); await load();
   }
 
   if (!token) {
@@ -122,6 +130,7 @@ export function AdminPage() {
     { id: 'works', label: '摄影作品', icon: Image },
     { id: 'posts', label: '博客文章', icon: FileText },
     { id: 'skills', label: 'Agent Skills', icon: Sparkles },
+    { id: 'trash', label: `回收站${trashedWorks.length ? ` (${trashedWorks.length})` : ''}`, icon: Trash2 },
   ];
 
   return (
@@ -142,6 +151,7 @@ export function AdminPage() {
           {tab === 'works' && <WorkManager token={token} items={works} form={workForm} setForm={setWorkForm} save={saveWork} remove={(id) => remove('works', id)} />}
           {tab === 'posts' && <PostManager token={token} items={posts} form={postForm} setForm={setPostForm} save={savePost} remove={(id) => remove('posts', id)} />}
           {tab === 'skills' && <SkillManager items={skills} form={skillForm} setForm={setSkillForm} save={saveSkill} remove={(id) => remove('skills', id)} />}
+          {tab === 'trash' && <RecycleBinManager items={trashedWorks} restore={restoreWork} />}
         </main>
       </div>
     </div>
@@ -289,6 +299,26 @@ function SkillManager({ items, form, setForm, save, remove }: { items: Skill[]; 
     </form>
     <ItemList>{items.map((item) => <ItemRow key={item.id} title={item.name} meta={`${item.enabled ? '已启用' : '已停用'} · ${item.description}`} onEdit={() => setForm(item)} onRemove={() => remove(item.id)} />)}</ItemList>
   </ManagerShell>;
+}
+
+function RecycleBinManager({ items, restore }: { items: Work[]; restore: (id: number) => void }) {
+  return <>
+    <div><h1 className="font-serif text-4xl">回收站</h1><p className="mt-1 text-sm text-ink/45">误删的作品集会保留在这里，点击即可恢复</p></div>
+    {items.length === 0 ? <div className="rounded-2xl border border-dashed border-ink/15 bg-paper p-12 text-center">
+      <Trash2 className="mx-auto text-ink/25" size={32} />
+      <p className="mt-4 text-sm text-ink/45">回收站是空的</p>
+    </div> : <div className="divide-y divide-ink/10 overflow-hidden rounded-2xl bg-paper">
+      {items.map((item) => <div key={item.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+        <img src={item.image_url} alt="" className="h-24 w-24 shrink-0 rounded-xl bg-fog object-cover" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium">{item.title}</p>
+          <p className="mt-1 text-xs text-ink/45">{item.category} · {item.location} · {item.year}</p>
+          <p className="mt-2 text-xs text-ink/35">删除于 {item.deleted_at?.replace('T', ' ').slice(0, 19) ?? '未知时间'}</p>
+        </div>
+        <button onClick={() => restore(item.id)} className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-ink px-4 py-3 text-sm text-paper transition hover:bg-olive"><RotateCcw size={16} /> 一键恢复</button>
+      </div>)}
+    </div>}
+  </>;
 }
 
 function ManagerShell({ title, count, onNew, children }: { title: string; count: number; onNew: () => void; children: React.ReactNode }) {

@@ -9,6 +9,7 @@ export type Work = {
   description: string;
   featured: boolean;
   sort_order: number;
+  deleted_at?: string | null;
 };
 
 export type Post = {
