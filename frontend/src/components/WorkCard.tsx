@@ -1,9 +1,10 @@
 import { ArrowUpRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { Work } from '../lib/api';
 
 export function WorkCard({ work, index }: { work: Work; index: number }) {
   return (
-    <article className={`group reveal ${index % 3 === 1 ? 'md:mt-20' : ''}`}>
+    <Link to={`/works/${work.id}`} className={`group reveal block ${index % 3 === 1 ? 'md:mt-20' : ''}`}>
       <div className="overflow-hidden bg-fog">
         <img
           src={work.image_url}
@@ -19,6 +20,6 @@ export function WorkCard({ work, index }: { work: Work; index: number }) {
         </div>
         <ArrowUpRight className="mt-1 transition group-hover:-translate-y-1 group-hover:translate-x-1" size={18} />
       </div>
-    </article>
+    </Link>
   );
 }

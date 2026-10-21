@@ -5,6 +5,7 @@ export type Work = {
   location: string;
   year: string;
   image_url: string;
+  gallery_urls: string[];
   description: string;
   featured: boolean;
   sort_order: number;
@@ -47,6 +48,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   works: () => request<Work[]>('/api/v1/works'),
+  work: (id: number) => request<Work>(`/api/v1/works/${id}`),
   posts: () => request<Post[]>('/api/v1/posts'),
   post: (slug: string) => request<Post>(`/api/v1/posts/${slug}`),
   skills: () => request<Skill[]>('/api/v1/skills'),
@@ -86,4 +88,13 @@ export async function adminUpload(file: File, token: string): Promise<{ url: str
     throw new Error(payload.detail ?? '上传失败');
   }
   return response.json() as Promise<{ url: string }>;
+}
+
+export async function adminUploadMany(files: File[], token: string): Promise<string[]> {
+  const urls: string[] = [];
+  for (const file of files) {
+    const result = await adminUpload(file, token);
+    urls.push(result.url);
+  }
+  return urls;
 }

@@ -45,6 +45,32 @@ def normalize_post(item: Dict[str, Any]) -> Dict[str, Any]:
     return item
 
 
+def normalize_work(item: Dict[str, Any]) -> Dict[str, Any]:
+    item["gallery_urls"] = [
+        image["image_url"]
+        for image in rows(
+            "SELECT image_url FROM work_images WHERE work_id = ? ORDER BY sort_order, id",
+            (item["id"],),
+        )
+    ]
+    return item
+
+
+def replace_work_images(work_id: int, image_urls: List[str]) -> None:
+    normalized_urls: List[str] = []
+    for image_url in image_urls:
+        clean_url = image_url.strip()
+        if clean_url and clean_url not in normalized_urls:
+            normalized_urls.append(clean_url)
+    with connect() as connection:
+        connection.execute("DELETE FROM work_images WHERE work_id = ?", (work_id,))
+        connection.executemany(
+            "INSERT INTO work_images (work_id, image_url, sort_order) VALUES (?, ?, ?)",
+            [(work_id, image_url, index) for index, image_url in enumerate(normalized_urls)],
+        )
+        connection.commit()
+
+
 def init_database() -> None:
     with connect() as connection:
         connection.executescript(
@@ -56,6 +82,16 @@ def init_database() -> None:
                 featured INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS work_images (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                work_id INTEGER NOT NULL,
+                image_url TEXT NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (work_id) REFERENCES works(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_work_images_work_id
+                ON work_images(work_id, sort_order, id);
             CREATE TABLE IF NOT EXISTS posts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, excerpt TEXT NOT NULL,

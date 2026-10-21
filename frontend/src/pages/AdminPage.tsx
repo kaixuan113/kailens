@@ -1,12 +1,12 @@
-import { Aperture, ArrowLeft, FileText, Image, KeyRound, LogOut, Plus, Save, Sparkles, Trash2 } from 'lucide-react';
+import { Aperture, ArrowLeft, FileText, Image, KeyRound, LoaderCircle, LogOut, Plus, Save, Sparkles, Trash2, X } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { adminRequest, adminUpload, api, type Post, type Skill, type Work } from '../lib/api';
+import { adminRequest, adminUpload, adminUploadMany, api, type Post, type Skill, type Work } from '../lib/api';
 
 type Tab = 'works' | 'posts' | 'skills';
 
 const emptyWork: Omit<Work, 'id'> = {
-  title: '', category: '街头', location: '北京', year: String(new Date().getFullYear()), image_url: '', description: '', featured: false, sort_order: 0,
+  title: '', category: '街头', location: '北京', year: String(new Date().getFullYear()), image_url: '', gallery_urls: [], description: '', featured: false, sort_order: 0,
 };
 const emptyPost: Omit<Post, 'id'> = {
   title: '', slug: '', excerpt: '', content: '', cover_url: '', tags: [], status: 'draft', published_at: new Date().toISOString(),
@@ -138,19 +138,67 @@ const fieldClass = 'w-full rounded-xl border border-ink/15 bg-white px-4 py-3 te
 const labelClass = 'space-y-2 text-sm text-ink/60';
 
 function WorkManager({ token, items, form, setForm, save, remove }: { token: string; items: Work[]; form: Omit<Work, 'id'> & { id?: number }; setForm: (value: typeof form) => void; save: (event: FormEvent) => void; remove: (id: number) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+
+  async function uploadCover(file: File) {
+    setUploading(true); setUploadError('');
+    try {
+      const result = await adminUpload(file, token);
+      setForm({ ...form, image_url: result.url });
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : '封面上传失败');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function uploadGallery(files: File[]) {
+    if (!files.length) return;
+    setUploading(true); setUploadError('');
+    try {
+      const urls = await adminUploadMany(files, token);
+      setForm({
+        ...form,
+        image_url: form.image_url || urls[0] || '',
+        gallery_urls: [...form.gallery_urls, ...urls],
+      });
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : '作品照片上传失败');
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return <ManagerShell title="摄影作品" count={items.length} onNew={() => setForm(emptyWork)}>
     <form onSubmit={save} className="grid gap-4 rounded-2xl bg-paper p-5 lg:grid-cols-2">
       <label className={labelClass}>作品标题<input required className={fieldClass} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
       <label className={labelClass}>分类<input className={fieldClass} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></label>
       <label className={labelClass}>地点<input className={fieldClass} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></label>
       <label className={labelClass}>年份<input className={fieldClass} value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} /></label>
-      <label className={`${labelClass} lg:col-span-2`}>图片地址<input required className={fieldClass} value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="/uploads/xxx.jpg 或 OSS 地址" /></label>
-      <label className={`${labelClass} lg:col-span-2`}>或上传图片（最大 12MB）<input type="file" accept="image/jpeg,image/png,image/webp" className={fieldClass} onChange={async (e) => { const file = e.target.files?.[0]; if (file) { const result = await adminUpload(file, token); setForm({ ...form, image_url: result.url }); } }} /></label>
+      <label className={`${labelClass} lg:col-span-2`}>作品集封面地址<input required className={fieldClass} value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="首页卡片使用的封面图" /></label>
+      <label className={labelClass}>上传作品集封面（单张，最大 12MB）<input type="file" accept="image/jpeg,image/png,image/webp" className={fieldClass} disabled={uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) void uploadCover(file); }} /></label>
+      <label className={labelClass}>批量上传作品照片（可一次多选）<input type="file" multiple accept="image/jpeg,image/png,image/webp" className={fieldClass} disabled={uploading} onChange={(e) => void uploadGallery(Array.from(e.target.files ?? []))} /></label>
+      {uploading && <p className="flex items-center gap-2 text-sm text-rust lg:col-span-2"><LoaderCircle className="animate-spin" size={16} /> 正在上传，请不要关闭页面…</p>}
+      {uploadError && <p className="rounded-xl bg-rust/10 p-3 text-sm text-rust lg:col-span-2">{uploadError}</p>}
+      {form.image_url && <div className="lg:col-span-2"><p className="mb-2 text-sm text-ink/60">当前封面</p><img src={form.image_url} alt="作品集封面预览" className="h-48 w-full rounded-xl object-cover md:w-80" /></div>}
+      {form.gallery_urls.length > 0 && <div className="lg:col-span-2">
+        <div className="mb-3 flex items-center justify-between"><p className="text-sm text-ink/60">作品集照片</p><span className="text-xs text-ink/40">共 {form.gallery_urls.length} 张 · 点击“设为封面”可更换首页图</span></div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {form.gallery_urls.map((url, index) => <div key={`${url}-${index}`} className="relative overflow-hidden rounded-xl bg-fog">
+            <img src={url} alt={`作品照片 ${index + 1}`} className="aspect-square w-full object-cover" />
+            <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-ink/75 p-2 text-xs text-paper backdrop-blur">
+              <button type="button" className={form.image_url === url ? 'text-rust' : 'hover:text-rust'} onClick={() => setForm({ ...form, image_url: url })}>{form.image_url === url ? '当前封面' : '设为封面'}</button>
+              <button type="button" aria-label="移除照片" className="hover:text-rust" onClick={() => setForm({ ...form, gallery_urls: form.gallery_urls.filter((_, photoIndex) => photoIndex !== index) })}><X size={15} /></button>
+            </div>
+          </div>)}
+        </div>
+      </div>}
       <label className={`${labelClass} lg:col-span-2`}>简介<textarea className={fieldClass} rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.featured} onChange={(e) => setForm({ ...form, featured: e.target.checked })} /> 首页精选</label>
       <button className="flex items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-paper hover:bg-rust"><Save size={16} /> 保存作品</button>
     </form>
-    <ItemList>{items.map((item) => <ItemRow key={item.id} title={item.title} meta={`${item.category} · ${item.location} · ${item.year}`} onEdit={() => setForm(item)} onRemove={() => remove(item.id)} />)}</ItemList>
+    <ItemList>{items.map((item) => <ItemRow key={item.id} title={item.title} meta={`${item.category} · ${item.location} · ${item.year} · ${new Set([item.image_url, ...item.gallery_urls]).size} 张照片`} onEdit={() => setForm(item)} onRemove={() => remove(item.id)} />)}</ItemList>
   </ManagerShell>;
 }
 
